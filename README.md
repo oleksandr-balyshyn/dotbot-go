@@ -133,7 +133,7 @@ just verify
 
 ## Releases
 
-GitHub Actions tests and builds the project on pushes and pull requests. When you push a tag that starts with `v`, for example `v0.1.0`, the workflow publishes a GitHub Release with:
+GitHub Actions tests and builds the project on pushes and pull requests. When you push a tag that starts with `v`, for example `v0.2.0`, the workflow publishes a GitHub Release with:
 
 - `dotbot-linux-amd64.tar.gz`
 - `dotbot-linux-amd64.tar.gz.sha256`
@@ -143,6 +143,6 @@ GitHub Actions tests and builds the project on pushes and pull requests. When yo
 Example:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
