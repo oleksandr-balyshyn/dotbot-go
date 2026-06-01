@@ -13,7 +13,7 @@ func TestExecuteVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("code = %d, want 0", code)
 	}
-	if stdout.String() != "Dotbot-Go version 0.2.0\n" {
+	if stdout.String() != "Dotbot-Go version 0.2.1\n" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 	if stderr.Len() != 0 {

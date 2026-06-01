@@ -16,7 +16,7 @@ func TestRunShowsVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := stdout.String(); got != "Dotbot-Go version 0.2.0\n" {
+	if got := stdout.String(); got != "Dotbot-Go version 0.2.1\n" {
 		t.Fatalf("stdout = %q", got)
 	}
 }

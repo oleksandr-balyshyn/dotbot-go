@@ -1,102 +1,55 @@
 # dotbot-go
 
-`dotbot-go` is a friendly Go implementation of the core Dotbot workflow for bootstrapping dotfiles. It reads a small YAML or JSON config, creates directories, links files into place, cleans broken symlinks, and runs optional setup commands.
+`dotbot-go` is a small command-line tool that helps you set up a computer from a dotfiles repository.
 
-The goal is to keep the familiar Dotbot behavior while producing a single Go binary you can place in your dotfiles repository or install locally.
+You write one config file that says:
 
-## Supported Directives
+- create these folders
+- link these files into my home directory
+- remove broken old symlinks
+- run these setup commands
 
-- `defaults`
-- `link`
-- `create`
-- `shell`
-- `clean`
+Then you run `dotbot-go`, preview the changes, and apply them.
 
-Python plugin loading is accepted at the CLI/config surface but is not executed by this Go port. Shell commands run through `$SHELL -c` on Unix and `cmd /C` on Windows. To avoid unbounded hangs, shell commands use a default execution timeout.
+This project is a Go implementation of the core [Dotbot](https://github.com/anishathalye/dotbot) workflow. It keeps the familiar config style while shipping as a single binary.
 
-## Build
+## When To Use It
 
-Please use `just` for the common project commands:
+Use `dotbot-go` when you keep configuration files in a Git repository and want to install them on a new machine or keep multiple machines in sync.
+
+Common examples:
+
+- link `~/.vimrc` to `vimrc` in your dotfiles repo
+- link `~/.tmux.conf` to `tmux.conf`
+- create folders like `~/.config/nvim` or `~/.local/bin`
+- run setup commands such as `git submodule update --init --recursive`
+
+## Quick Start
+
+### 1. Build The Binary
+
+From this repository:
 
 ```bash
 just build
 ```
 
-That creates:
+This creates:
 
 ```text
 bin/dotbot
 ```
 
-To run formatting, module cleanup, tests, vet, and the build together:
+If you do not have `just`, you can build with Go directly:
 
 ```bash
-just verify
+mkdir -p bin
+go build -buildvcs=false -o bin/dotbot ./cmd/dotbot-go
 ```
 
-To create Linux release binaries locally:
+### 2. Create A Config File
 
-```bash
-just package-linux
-```
-
-That writes Linux `amd64` and `arm64` archives plus checksums into `dist/`.
-
-## Usage
-
-Run against a config file:
-
-```bash
-./bin/dotbot -c install.conf.yaml
-```
-
-Supported config formats:
-
-- YAML: `.yaml`, `.yml`
-- JSON: `.json`
-- JSON5 with comments/trailing commas: `.json5`
-- TOML: `.toml`
-- HOCON: `.conf`, `.hocon`
-
-YAML, JSON, and JSON5 can use the traditional Dotbot top-level task list. TOML and HOCON should wrap that ordered list in `tasks = [...]`.
-
-Preview changes without touching the filesystem:
-
-```bash
-./bin/dotbot -c install.conf.yaml --dry-run
-```
-
-Run from a specific dotfiles directory:
-
-```bash
-./bin/dotbot -d ~/.dotfiles -c ~/.dotfiles/install.conf.yaml
-```
-
-Run only one directive:
-
-```bash
-./bin/dotbot -c install.conf.yaml --only link
-```
-
-Skip a directive:
-
-```bash
-./bin/dotbot -c install.conf.yaml --except shell
-```
-
-Show more detail:
-
-```bash
-./bin/dotbot -vv -c install.conf.yaml
-```
-
-Color is enabled automatically when output is connected to a terminal. Use `--force-color` to keep color in redirected output, or `--no-color` to disable ANSI output.
-
-## Example Config
-
-A complete example is available at [examples/install.conf.yaml](examples/install.conf.yaml).
-
-Here is a small version:
+Create `install.conf.yaml` in your dotfiles repository:
 
 ```yaml
 - defaults:
@@ -108,41 +61,219 @@ Here is a small version:
     - "~"
 
 - create:
-    - "~/.vim/undo-history"
+    - "~/.config"
+    - "~/.local/bin"
 
 - link:
+    ~/.vimrc: vimrc
     ~/.tmux.conf: tmux.conf
-    ~/.vimrc:
-      path: vimrc
-      backup: true
-    ~/.config/starship.toml:
-      path: starship.toml
+    ~/.config/nvim:
+      path: nvim
 
 - shell:
     - [git submodule update --init --recursive, Installing submodules]
 ```
 
-If a destination already exists as a normal file or directory, `dotbot-go` will not overwrite it by default. Use `backup: true` when you want the existing path renamed before linking, or `force: true` only when removing the existing path is intentional.
+In plain English, this means:
 
-## Development
+- use sensible defaults for links
+- clean broken symlinks in your home directory
+- create a couple of folders
+- link files from the repo into your home directory
+- update Git submodules
+
+### 3. Preview First
+
+Always run a dry run first:
+
+```bash
+./bin/dotbot -c install.conf.yaml --dry-run
+```
+
+Dry run prints what would happen without changing your filesystem.
+
+### 4. Apply The Config
+
+When the preview looks correct:
+
+```bash
+./bin/dotbot -c install.conf.yaml
+```
+
+## Install From A Dotfiles Repo
+
+A typical dotfiles repository looks like this:
+
+```text
+dotfiles/
+├── install.conf.yaml
+├── vimrc
+├── tmux.conf
+└── nvim/
+```
+
+Run `dotbot-go` from that repository:
+
+```bash
+cd ~/.dotfiles
+dotbot-go -c install.conf.yaml
+```
+
+Or point to the repository explicitly:
+
+```bash
+dotbot-go -d ~/.dotfiles -c ~/.dotfiles/install.conf.yaml
+```
+
+The `-d` option sets the base directory. Relative paths in your config, such as `vimrc` or `nvim`, are resolved from that directory.
+
+## Supported Config Formats
+
+`dotbot-go` supports these file formats:
+
+| Format | Extensions | Best For |
+| --- | --- | --- |
+| YAML | `.yaml`, `.yml` | Most dotfiles users |
+| JSON | `.json` | Strict machine-generated config |
+| JSON5 | `.json5` | JSON with comments and trailing commas |
+| TOML | `.toml` | Users who prefer TOML syntax |
+| HOCON | `.conf`, `.hocon` | HOCON-based config workflows |
+
+Complete examples:
+
+- [YAML example](examples/install.conf.yaml)
+- [JSON example](examples/install.json)
+- [JSON5 example](examples/install.json5)
+- [TOML example](examples/install.toml)
+- [HOCON example](examples/install.hocon)
+
+YAML, JSON, and JSON5 can use a top-level task list. TOML and HOCON should put the task list under `tasks`.
+
+More detail: [Config Formats Guide](docs/CONFIG_FORMATS.md)
+
+## Directives
+
+Directives are the actions in your config file. They run in the order you write them.
+
+| Directive | What It Does |
+| --- | --- |
+| `defaults` | Sets default options for later directives |
+| `clean` | Removes broken symlinks from selected directories |
+| `create` | Creates directories |
+| `link` | Creates symlinks or hardlinks |
+| `shell` | Runs shell commands |
+
+More detail: [User Guide](docs/USER_GUIDE.md)
+
+## Common Commands
+
+Preview without changing files:
+
+```bash
+dotbot-go -c install.conf.yaml --dry-run
+```
+
+Run only link tasks:
+
+```bash
+dotbot-go -c install.conf.yaml --only link
+```
+
+Skip shell commands:
+
+```bash
+dotbot-go -c install.conf.yaml --except shell
+```
+
+Show more output:
+
+```bash
+dotbot-go -vv -c install.conf.yaml
+```
+
+Disable color:
+
+```bash
+dotbot-go -c install.conf.yaml --no-color
+```
+
+Force color when piping output:
+
+```bash
+dotbot-go -c install.conf.yaml --force-color
+```
+
+Stop after the first failed directive:
+
+```bash
+dotbot-go -c install.conf.yaml --exit-on-failure
+```
+
+## Safe Linking Rules
+
+`dotbot-go` will not overwrite a normal file or directory by default.
+
+If a destination already exists:
+
+- use `backup: true` to rename the existing file before linking
+- use `force: true` only when you intentionally want to remove the existing path
+- use `relink: true` to replace an existing symlink
+
+Example:
+
+```yaml
+- link:
+    ~/.vimrc:
+      path: vimrc
+      backup: true
+```
+
+## Troubleshooting
+
+If something looks wrong, start here:
+
+```bash
+dotbot-go -c install.conf.yaml --dry-run -vv
+```
+
+Common problems:
+
+| Problem | What To Check |
+| --- | --- |
+| `unsupported config file format` | File extension must be one of the supported extensions |
+| `configuration file must be a list of tasks` | YAML/JSON/JSON5 should be a list, TOML/HOCON should use `tasks` |
+| Link target does not exist | Make sure the source file exists in your dotfiles repo |
+| Existing file blocks a link | Add `backup: true`, move the file manually, or intentionally use `force: true` |
+| Shell command fails | Run with `-vv` to see command output |
+
+More detail: [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
+
+## For Developers
+
+Useful commands:
 
 ```bash
 just --list
 just verify
 ```
 
+Without `just`:
+
+```bash
+gofmt -w .
+go mod tidy
+go test ./...
+go vet ./...
+go build -buildvcs=false -o bin/dotbot ./cmd/dotbot-go
+```
+
 ## Releases
 
-GitHub Actions tests and builds the project on pushes and pull requests. When you push a tag that starts with `v`, for example `v0.2.0`, the workflow publishes a GitHub Release with:
-
-- `dotbot-linux-amd64.tar.gz`
-- `dotbot-linux-amd64.tar.gz.sha256`
-- `dotbot-linux-arm64.tar.gz`
-- `dotbot-linux-arm64.tar.gz.sha256`
+GitHub Actions tests and builds the project on pushes and pull requests. When you push a tag that starts with `v`, for example `v0.2.1`, the workflow publishes a GitHub Release with Linux archives and checksums.
 
 Example:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```

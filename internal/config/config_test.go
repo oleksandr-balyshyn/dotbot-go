@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -106,6 +107,32 @@ func TestReadSupportsConfigFormats(t *testing.T) {
 			}
 			if _, ok := tasks[0][tt.wantKey]; !ok {
 				t.Fatalf("task missing %q: %#v", tt.wantKey, tasks[0])
+			}
+		})
+	}
+}
+
+func TestExamplesParse(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("could not resolve test file path")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	paths := []string{
+		filepath.Join(root, "examples", "install.conf.yaml"),
+		filepath.Join(root, "examples", "install.json"),
+		filepath.Join(root, "examples", "install.json5"),
+		filepath.Join(root, "examples", "install.toml"),
+		filepath.Join(root, "examples", "install.hocon"),
+	}
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			tasks, err := Read([]string{path})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(tasks) == 0 {
+				t.Fatal("expected example to contain tasks")
 			}
 		})
 	}
