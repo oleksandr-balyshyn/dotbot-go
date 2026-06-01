@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -85,6 +86,9 @@ func newRootCommand(ctx context.Context, opts *options, stdout io.Writer) *cobra
 	cmd.Flags().BoolVar(&opts.noColor, "no-color", false, "disable color output")
 	cmd.Flags().BoolVar(&opts.showVersion, "version", false, "show program's version number and exit")
 	cmd.Flags().BoolVarP(&opts.exitOnFailure, "exit-on-failure", "x", false, "exit after first failed directive")
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		fmt.Fprint(cmd.OutOrStdout(), renderHelp(cmd, stdout))
+	})
 	return cmd
 }
 
@@ -118,4 +122,199 @@ func (o *options) appOptions() app.Options {
 		ExitOnFailure:         o.exitOnFailure,
 		ShowVersion:           o.showVersion,
 	}
+}
+
+func renderHelp(cmd *cobra.Command, stdout io.Writer) string {
+	color := helpColorEnabled(cmd, stdout)
+	var b strings.Builder
+
+	helpTitle(&b, color, cmd)
+
+	helpSection(&b, color, "Usage")
+	fmt.Fprintf(&b, "  %s\n\n", cmd.UseLine())
+
+	helpSection(&b, color, "Examples")
+	fmt.Fprintln(&b, "  dotbot-go -c install.conf.yaml")
+	fmt.Fprintln(&b, "  dotbot-go -d ~/.dotfiles -c ~/.dotfiles/install.conf.yaml --dry-run")
+	fmt.Fprintln(&b, "  dotbot-go -c install.conf.yaml --only link -vv")
+	fmt.Fprintln(&b)
+
+	helpSection(&b, color, "Built-In Directives")
+	fmt.Fprintln(&b, "  defaults   set directive defaults")
+	fmt.Fprintln(&b, "  link       create symlinks or hardlinks")
+	fmt.Fprintln(&b, "  create     create directories")
+	fmt.Fprintln(&b, "  shell      run setup commands")
+	fmt.Fprintln(&b, "  clean      remove broken links")
+	fmt.Fprintln(&b)
+
+	helpSection(&b, color, "Flags")
+	helpFlagGroup(&b, color, cmd, "Workflow", []string{
+		"config-file",
+		"base-directory",
+		"dry-run",
+		"exit-on-failure",
+	})
+	helpFlagGroup(&b, color, cmd, "Filtering", []string{
+		"only",
+		"except",
+		"disable-built-in-plugins",
+	})
+	helpFlagGroup(&b, color, cmd, "Output", []string{
+		"quiet",
+		"verbose",
+		"force-color",
+		"no-color",
+		"version",
+		"help",
+	})
+	helpFlagGroup(&b, color, cmd, "Compatibility", []string{
+		"plugin",
+	})
+
+	helpSection(&b, color, "Color")
+	fmt.Fprintln(&b, "  Colors are automatic for terminals.")
+	fmt.Fprintln(&b, "  Use --force-color for redirected color, or --no-color for plain output.")
+	return b.String()
+}
+
+func helpTitle(b *strings.Builder, color bool, cmd *cobra.Command) {
+	border := strings.Repeat("-", 64)
+	fmt.Fprintf(b, "%s\n", helpColor(color, "\033[36m", "+"+border+"+"))
+	helpTitleLine(b, color, "\033[1;36m", "dotbot-go")
+	helpTitleLine(b, color, "", cmd.Short)
+	fmt.Fprintf(b, "%s\n\n", helpColor(color, "\033[36m", "+"+border+"+"))
+}
+
+func helpTitleLine(b *strings.Builder, color bool, code, text string) {
+	width := 62
+	if len(text) > width {
+		text = text[:width]
+	}
+	padding := strings.Repeat(" ", width-len(text))
+	fmt.Fprintf(b, "| %s%s |\n", helpColor(color, code, text), padding)
+}
+
+func helpSection(b *strings.Builder, color bool, title string) {
+	fmt.Fprintf(b, "%s\n", helpColor(color, "\033[1;37m", title))
+}
+
+func helpFlagGroup(b *strings.Builder, color bool, cmd *cobra.Command, title string, names []string) {
+	rows := flagRows(cmd, names)
+	if len(rows) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "%s\n", helpColor(color, "\033[1;34m", title))
+	width := 0
+	for _, row := range rows {
+		if len(row.name) > width {
+			width = len(row.name)
+		}
+	}
+	for _, row := range rows {
+		padding := strings.Repeat(" ", width-len(row.name))
+		descriptionWidth := 76 - width - 4
+		lines := wrapWords(row.usage, descriptionWidth)
+		if len(lines) == 0 {
+			lines = []string{""}
+		}
+		fmt.Fprintf(b, "  %s%s  %s\n", helpColor(color, "\033[36m", row.name), padding, lines[0])
+		for _, line := range lines[1:] {
+			fmt.Fprintf(b, "  %s  %s\n", strings.Repeat(" ", width), line)
+		}
+	}
+	fmt.Fprintln(b)
+}
+
+type flagRow struct {
+	name  string
+	usage string
+}
+
+func flagRows(cmd *cobra.Command, names []string) []flagRow {
+	rows := []flagRow{}
+	for _, flagName := range names {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			continue
+		}
+		if flag.Hidden {
+			continue
+		}
+		name := flagDisplayName(flag.Name)
+		if flag.Shorthand != "" {
+			name = "-" + flag.Shorthand + ", " + name
+		}
+		rows = append(rows, flagRow{name: name, usage: singleLine(flag.Usage)})
+	}
+	return rows
+}
+
+func flagDisplayName(name string) string {
+	switch name {
+	case "base-directory":
+		return "--base-directory <dir>"
+	case "config-file":
+		return "--config-file <file>"
+	case "except":
+		return "--except <directive>"
+	case "only":
+		return "--only <directive>"
+	case "plugin":
+		return "--plugin <path>"
+	default:
+		return "--" + name
+	}
+}
+
+func singleLine(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func wrapWords(s string, width int) []string {
+	if width < 20 {
+		width = 20
+	}
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return nil
+	}
+	lines := []string{}
+	line := words[0]
+	for _, word := range words[1:] {
+		if len(line)+1+len(word) > width {
+			lines = append(lines, line)
+			line = word
+			continue
+		}
+		line += " " + word
+	}
+	return append(lines, line)
+}
+
+func helpColorEnabled(cmd *cobra.Command, stdout io.Writer) bool {
+	if flag := cmd.Flags().Lookup("no-color"); flag != nil && flag.Value.String() == "true" {
+		return false
+	}
+	if flag := cmd.Flags().Lookup("force-color"); flag != nil && flag.Value.String() == "true" {
+		return true
+	}
+	if os.Getenv("NO_COLOR") != "" || strings.EqualFold(os.Getenv("TERM"), "dumb") {
+		return false
+	}
+	file, ok := stdout.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func helpColor(enabled bool, code, text string) string {
+	if !enabled || code == "" {
+		return text
+	}
+	return code + text + "\033[0m"
 }

@@ -35,3 +35,45 @@ func TestExecuteAppExitDoesNotDuplicateToStderr(t *testing.T) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
+
+func TestExecuteHelpUsesStyledSections(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Execute([]string{"--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("code = %d, want 0", code)
+	}
+	got := stdout.String()
+	for _, expected := range []string{
+		"dotbot-go",
+		"Usage",
+		"Examples",
+		"Built-In Directives",
+		"Flags",
+		"Output",
+		"--config-file <file>",
+		"--dry-run",
+	} {
+		if !strings.Contains(got, expected) {
+			t.Fatalf("missing %q in help:\n%s", expected, got)
+		}
+	}
+	if strings.Contains(got, "\033[") {
+		t.Fatalf("unexpected color for buffer output: %q", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestExecuteHelpForceColor(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Execute([]string{"--force-color", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("code = %d, want 0", code)
+	}
+	if !strings.Contains(stdout.String(), "\033[1;36mdotbot-go\033[0m") {
+		t.Fatalf("missing colored title: %q", stdout.String())
+	}
+}
