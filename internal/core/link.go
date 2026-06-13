@@ -46,7 +46,12 @@ func (LinkHandler) Handle(ctx *Context, directive string, data any) (bool, error
 			continue
 		}
 		if opts.Glob && hasGlobChars(path) {
-			matches := createGlobResults(ctx, path, opts.Exclude)
+			matches, err := createGlobResults(path, opts.Exclude)
+			if err != nil {
+				ctx.Log.Warning(fmt.Sprintf("Unable to expand glob '%s': %v", path, err))
+				success = false
+				continue
+			}
 			ctx.Log.Debug(fmt.Sprintf("Globs from '%s': %v", path, matches))
 			for _, fullItem := range matches {
 				globItem := globLinkItem(path, fullItem)

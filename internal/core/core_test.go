@@ -305,6 +305,36 @@ func TestRelinkReportsReadlinkFailure(t *testing.T) {
 	}
 }
 
+func TestRecursiveGlobReportsMalformedPattern(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "dotfiles")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "vimrc"), []byte("set number\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	dispatcher := newTestDispatcher(t, dir, &out, Options{})
+	success, err := dispatcher.Dispatch(context.Background(), []config.Task{
+		{"link": map[string]any{
+			filepath.Join(dir, "home"): map[string]any{
+				"path": filepath.Join(root, "**", "["),
+				"glob": true,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if success {
+		t.Fatalf("expected malformed glob failure: %s", out.String())
+	}
+	if !strings.Contains(out.String(), "Unable to expand glob") {
+		t.Fatalf("missing glob warning: %s", out.String())
+	}
+}
+
 type chmodFailFS struct {
 	fsops.OSFS
 }
