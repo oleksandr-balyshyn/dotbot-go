@@ -11,13 +11,12 @@ import (
 )
 
 type Options struct {
-	Only                  []string
-	Skip                  []string
-	ExitOnFailure         bool
-	DryRun                bool
-	Verbose               int
-	DisableBuiltInPlugins bool
-	ShellTimeout          time.Duration
+	Only          []string
+	Skip          []string
+	ExitOnFailure bool
+	DryRun        bool
+	Verbose       int
+	ShellTimeout  time.Duration
 }
 
 type Context struct {

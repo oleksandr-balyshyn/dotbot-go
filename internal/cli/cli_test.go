@@ -61,8 +61,26 @@ func TestExecuteHelpUsesStyledSections(t *testing.T) {
 	if strings.Contains(got, "\033[") {
 		t.Fatalf("unexpected color for buffer output: %q", got)
 	}
+	if strings.Contains(got, "Compatibility") || strings.Contains(got, "--plugin") {
+		t.Fatalf("help includes plugin support: %q", got)
+	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestExecuteRejectsPluginFlag(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Execute([]string{"--plugin", "example.py"}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "unknown flag: --plugin") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 

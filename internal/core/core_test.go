@@ -115,6 +115,24 @@ func TestShellDirectiveFailure(t *testing.T) {
 	}
 }
 
+func TestPluginsDirectiveIsUnhandled(t *testing.T) {
+	dir := t.TempDir()
+	var out bytes.Buffer
+	dispatcher := newTestDispatcher(t, dir, &out, Options{})
+	success, err := dispatcher.Dispatch(context.Background(), []config.Task{
+		{"plugins": []any{"example.py"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if success {
+		t.Fatal("expected plugins directive to fail")
+	}
+	if !strings.Contains(out.String(), "Action plugins not handled") {
+		t.Fatalf("missing unhandled directive output: %s", out.String())
+	}
+}
+
 func TestBackupUsesInjectedClock(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "vimrc")

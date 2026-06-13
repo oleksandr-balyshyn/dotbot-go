@@ -96,21 +96,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, tasks []config.Task) (bool, e
 				}
 				handled = true
 			}
-			if action == "plugins" {
-				d.ctx.Log.Warning("Go migration does not support Python plugin loading")
-				success = false
-				handled = true
-				if d.ctx.Options.ExitOnFailure {
-					d.ctx.Log.Error("Action plugins failed")
-					return false, nil
-				}
-			}
 			for _, handler := range d.handlers {
 				if !handler.CanHandle(action) {
 					continue
 				}
 				if d.ctx.Options.DryRun && !handler.SupportsDryRun() {
-					d.ctx.Log.Action(fmt.Sprintf("Skipping dry-run-unaware plugin %T", handler))
+					d.ctx.Log.Action(fmt.Sprintf("Skipping dry-run-unaware handler %T", handler))
 					handled = true
 					continue
 				}

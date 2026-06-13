@@ -16,21 +16,18 @@ import (
 )
 
 type options struct {
-	superQuiet            bool
-	quiet                 bool
-	verbose               int
-	baseDirectory         string
-	configFiles           []string
-	plugins               []string
-	pluginDirs            []string
-	disableBuiltInPlugins bool
-	only                  []string
-	skip                  []string
-	dryRun                bool
-	forceColor            bool
-	noColor               bool
-	exitOnFailure         bool
-	showVersion           bool
+	superQuiet    bool
+	quiet         bool
+	verbose       int
+	baseDirectory string
+	configFiles   []string
+	only          []string
+	skip          []string
+	dryRun        bool
+	forceColor    bool
+	noColor       bool
+	exitOnFailure bool
+	showVersion   bool
 }
 
 func Execute(args []string, stdout, stderr io.Writer) int {
@@ -75,10 +72,6 @@ func newRootCommand(ctx context.Context, opts *options, stdout io.Writer) *cobra
 	cmd.Flags().CountVarP(&opts.verbose, "verbose", "v", "enable verbose output\n-v: show informational messages\n-vv: also, set shell commands stderr/stdout to true")
 	cmd.Flags().StringVarP(&opts.baseDirectory, "base-directory", "d", "", "execute commands from within BASE_DIR")
 	cmd.Flags().StringArrayVarP(&opts.configFiles, "config-file", "c", nil, "run commands given in CONFIG_FILE")
-	cmd.Flags().StringArrayVarP(&opts.plugins, "plugin", "p", nil, "load PLUGIN as a plugin")
-	cmd.Flags().BoolVar(&opts.disableBuiltInPlugins, "disable-built-in-plugins", false, "disable built-in plugins")
-	cmd.Flags().StringArrayVar(&opts.pluginDirs, "plugin-dir", nil, "deprecated plugin directory")
-	mustMarkHidden(cmd, "plugin-dir")
 	cmd.Flags().StringSliceVar(&opts.only, "only", nil, "only run specified directives")
 	cmd.Flags().StringSliceVar(&opts.skip, "except", nil, "skip specified directives")
 	cmd.Flags().BoolVarP(&opts.dryRun, "dry-run", "n", false, "print what would be done, without doing it")
@@ -106,21 +99,18 @@ func ExecuteOS() int {
 
 func (o *options) appOptions() app.Options {
 	return app.Options{
-		SuperQuiet:            o.superQuiet,
-		Quiet:                 o.quiet,
-		Verbose:               o.verbose,
-		BaseDirectory:         o.baseDirectory,
-		ConfigFiles:           o.configFiles,
-		Plugins:               o.plugins,
-		PluginDirs:            o.pluginDirs,
-		DisableBuiltInPlugins: o.disableBuiltInPlugins,
-		Only:                  o.only,
-		Skip:                  o.skip,
-		DryRun:                o.dryRun,
-		ForceColor:            o.forceColor,
-		NoColor:               o.noColor,
-		ExitOnFailure:         o.exitOnFailure,
-		ShowVersion:           o.showVersion,
+		SuperQuiet:    o.superQuiet,
+		Quiet:         o.quiet,
+		Verbose:       o.verbose,
+		BaseDirectory: o.baseDirectory,
+		ConfigFiles:   o.configFiles,
+		Only:          o.only,
+		Skip:          o.skip,
+		DryRun:        o.dryRun,
+		ForceColor:    o.forceColor,
+		NoColor:       o.noColor,
+		ExitOnFailure: o.exitOnFailure,
+		ShowVersion:   o.showVersion,
 	}
 }
 
@@ -157,7 +147,6 @@ func renderHelp(cmd *cobra.Command, stdout io.Writer) string {
 	helpFlagGroup(&b, color, cmd, "Filtering", []string{
 		"only",
 		"except",
-		"disable-built-in-plugins",
 	})
 	helpFlagGroup(&b, color, cmd, "Output", []string{
 		"quiet",
@@ -167,10 +156,6 @@ func renderHelp(cmd *cobra.Command, stdout io.Writer) string {
 		"version",
 		"help",
 	})
-	helpFlagGroup(&b, color, cmd, "Compatibility", []string{
-		"plugin",
-	})
-
 	helpSection(&b, color, "Color")
 	fmt.Fprintln(&b, "  Colors are automatic for terminals.")
 	fmt.Fprintln(&b, "  Use --force-color for redirected color, or --no-color for plain output.")
@@ -259,8 +244,6 @@ func flagDisplayName(name string) string {
 		return "--except <directive>"
 	case "only":
 		return "--only <directive>"
-	case "plugin":
-		return "--plugin <path>"
 	default:
 		return "--" + name
 	}

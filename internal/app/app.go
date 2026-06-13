@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"dotbot-go/internal/config"
@@ -22,21 +21,18 @@ const Version = "0.2.1"
 var ErrExit = errors.New("app: exit")
 
 type Options struct {
-	SuperQuiet            bool
-	Quiet                 bool
-	Verbose               int
-	BaseDirectory         string
-	ConfigFiles           []string
-	Plugins               []string
-	PluginDirs            []string
-	DisableBuiltInPlugins bool
-	Only                  []string
-	Skip                  []string
-	DryRun                bool
-	ForceColor            bool
-	NoColor               bool
-	ExitOnFailure         bool
-	ShowVersion           bool
+	SuperQuiet    bool
+	Quiet         bool
+	Verbose       int
+	BaseDirectory string
+	ConfigFiles   []string
+	Only          []string
+	Skip          []string
+	DryRun        bool
+	ForceColor    bool
+	NoColor       bool
+	ExitOnFailure bool
+	ShowVersion   bool
 }
 
 type Dependencies struct {
@@ -91,23 +87,18 @@ func Run(ctx context.Context, opts Options, stdout io.Writer, deps Dependencies)
 		return ErrExit
 	}
 	logger.Action(runSummary(len(tasks), len(opts.ConfigFiles), base, opts.DryRun))
-	handlers := deps.Handlers
-	if opts.DisableBuiltInPlugins {
-		handlers = []core.Handler{}
-	}
 	coreOpts := core.Options{
-		Only:                  opts.Only,
-		Skip:                  opts.Skip,
-		ExitOnFailure:         opts.ExitOnFailure,
-		DryRun:                opts.DryRun,
-		Verbose:               opts.Verbose,
-		DisableBuiltInPlugins: opts.DisableBuiltInPlugins,
+		Only:          opts.Only,
+		Skip:          opts.Skip,
+		ExitOnFailure: opts.ExitOnFailure,
+		DryRun:        opts.DryRun,
+		Verbose:       opts.Verbose,
 	}
 	dispatcher, err := core.NewDispatcher(core.DispatcherConfig{
 		BaseDirectory: base,
 		Options:       coreOpts,
 		Logger:        logger,
-		Handlers:      handlers,
+		Handlers:      deps.Handlers,
 		FS:            deps.FS,
 		Shell:         deps.Shell,
 		Clock:         deps.Clock,
@@ -116,16 +107,12 @@ func Run(ctx context.Context, opts Options, stdout io.Writer, deps Dependencies)
 		logger.Error(err.Error())
 		return ErrExit
 	}
-	if len(opts.Plugins) > 0 || len(opts.PluginDirs) > 0 {
-		logger.Warning("Go migration does not support Python plugin loading")
-		logger.Debug("Unsupported plugin inputs: " + strings.Join(append(opts.Plugins, opts.PluginDirs...), ", "))
-	}
 	success, err := dispatcher.Dispatch(ctx, tasks)
 	if err != nil {
 		logger.Error(err.Error())
 		return ErrExit
 	}
-	if success && len(opts.Plugins) == 0 && len(opts.PluginDirs) == 0 {
+	if success {
 		logger.Info("All tasks executed successfully")
 		return nil
 	}
